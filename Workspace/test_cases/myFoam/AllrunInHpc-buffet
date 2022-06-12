@@ -1,0 +1,130 @@
+#!/bin/bash
+
+#SBATCH --job-name=runFoam-V1.12
+#SBATCH --partition=64c512g
+#SBATCH -n 64
+#SBATCH --ntasks-per-node=64
+#SBATCH --output=%j.out
+#SBATCH --error=%j.err
+
+#1. Defining the container to be used
+theRepo=/dssg/home/acct-medgm/medgm/00-sif
+theContainerBaseName=openfoam
+theVersion=v2012
+theProvider=pawsey
+theImage=$theRepo/$theContainerBaseName-$theVersion-$theProvider.sif
+ 
+#2. Project Name
+project_name=myFoam
+foam_numberOfSubdomains="64"
+
+#2. Control parameter
+foam_case="chamfer"
+theSolver="hisa"  #"hisa"
+foam_writeFormat="binary"
+foam_turbulence="laminar"  #kOmegaSST kEpsilonPhitF SpalartAllmaras iddesGammaTheta
+#For rhoSimpleFoam:Kurganov
+#For myFoam:hllcLMFlux,betaFlux,AUSMplusUpFlux
+#For centralFoam:Kurganov
+#For hisa:AUSMPlusUp,AUSMPlusUp
+
+#1. steady
+foam_writeInterval="500"
+foam_maxCo="1.0e20"
+foam_endTime="10000"
+foam_deltaT="1"
+foam_ddtScheme="steadyState"
+
+#2. Transient1 parameter
+#foam_ddtScheme="backward"
+#foam_writeInterval="0.5e-4"
+#foam_maxCo="0.1" 
+#foam_endTime="0.1" 
+#foam_deltaT="1.0e-8"
+
+
+
+foam_writeControl="adjustableRunTime"    #"runTime"   
+foam_runTimeModifiable="true"
+foam_startFrom="latestTime"
+foam_purgeWrite="0"
+foam_numberOfSubdomains=$foam_numberOfSubdomains
+foam_writeFormat=$foam_writeFormat
+foam_fluxSchemes=$foam_fluxSchemes
+foam_polyMesh_type=$foam_case
+
+#2. Project Name
+caseName=T-steady-$foam_turbulence-$theSolver-maxCo$foam_maxCo-$foam_case-$foam_ddtScheme
+polyMeshName=polyMesh-igg-final-$foam_case
+
+
+projectUserDir=$(pwd)/../../projectUserDir
+baseWorkingDir=$(pwd)/../../run
+caseDir=$baseWorkingDir/$caseName
+logsDir=$caseDir/logs/pre
+
+
+
+#4. Copy the file to run
+mkdir -p $baseWorkingDir
+#rm -rf $baseWorkingDir/$caseName
+cp -rf $(pwd)/../../test_cases/$project_name  $caseDir
+
+# create log directory
+if ! [ -d $logsDir ]; then
+   mkdir -p $logsDir
+fi
+
+
+#5. Defining OpenFOAM controlDict settings for Pawsey Best Practices
+echo "----------> cd to $caseDir"
+cd $caseDir
+rm -rf *.err
+rm -rf *.out
+cp -rf constant/$polyMeshName constant/polyMesh
+rm -rf constant/polyMesh-igg*
+rm -rf constant/igg*
+
+mv -f system/fvSchemes-$foam_case-$theSolver system/fvSchemes
+mv -f system/fvSolution-$foam_case-$theSolver system/fvSolution
+mv -f constant/thermophysicalProperties-$foam_case constant/thermophysicalProperties
+mv -f constant/turbulenceProperties-$foam_case-$foam_turbulence constant/turbulenceProperties
+rm -rf constant/turbulenceProperties-*
+rm -rf constant/thermophysicalProperties-*
+rm -rf system/fvSchemes-*
+rm -rf system/fvSolution-*
+
+echo "----------> restore0Dir"
+mv 0_org-$foam_case-$theSolver 0
+rm -rf 0_org-*
+
+
+
+sed -i 's,^runTimeModifiable.*,runTimeModifiable    '"$foam_runTimeModifiable"';,' ./system/controlDict
+sed -i 's,^purgeWrite.*,purgeWrite    '"$foam_purgeWrite"';,' ./system/controlDict
+sed -i 's,^startFrom.*,startFrom    '"$foam_startFrom"';,' ./system/controlDict
+sed -i 's,^deltaT.*,deltaT    '"$foam_deltaT"';,' ./system/controlDict
+sed -i 's,^writeInterval.*,writeInterval    '"$foam_writeInterval"';,' ./system/controlDict
+sed -i 's,^writeControl.*,writeControl    '"$foam_writeControl"';,' ./system/controlDict
+sed -i 's,^purgeWrite.*,purgeWrite    '"$foam_purgeWrite"';,' ./system/controlDict
+sed -i 's,^maxCo.*,maxCo    '"$foam_maxCo"';,' ./system/controlDict
+sed -i 's,^endTime.*,endTime    '"$foam_endTime"';,' ./system/controlDict
+sed -i 's,^numberOfSubdomains.*,numberOfSubdomains    '"$foam_numberOfSubdomains"';,' ./system/decomposeParDict
+sed -i 's,steadyState,'"$foam_ddtScheme"','  ./system/fvSchemes
+
+echo "----------> Decompose"
+singularity exec -B $projectUserDir:/home/ofuser/OpenFOAM/ofuser-$theVersion $theImage decomposePar -force 2>&1 | tee $logsDir/log.decomposePar2.$SLURM_JOBID
+
+echo "----------> run the transient1 $theSolver"
+srun --mpi=pmi2 singularity exec -B $projectUserDir:/home/ofuser/OpenFOAM/ofuser-$theVersion $theImage $theSolver -parallel 2>&1 | tee $logsDir/log.trasient1theSolver.$SLURM_JOBID
+
+echo "----------> Decompose"
+singularity exec -B $projectUserDir:/home/ofuser/OpenFOAM/ofuser-$theVersion $theImage reconstructPar 2>&1 | tee $logsDir/log.reconstructPar.$SLURM_JOBID
+
+#local-mode
+#singularity exec -B $projectUserDir:/home/ofuser/OpenFOAM/ofuser-$theVersion $theImage decomposePar -force 2>&1 | tee $logsDir/log.decomposePar2.$SLURM_JOBID
+
+#singularity exec -B $projectUserDir:/home/ofuser/OpenFOAM/ofuser-$theVersion $theImage $theSolver  2>&1 | tee $logsDir/log.decomposePar2.$SLURM_JOBID
+
+echo "----------> FINISH TRANSIENT1 STEP"
+

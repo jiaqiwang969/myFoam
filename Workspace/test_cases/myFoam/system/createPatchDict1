@@ -1,0 +1,79 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      createPatchDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+pointSync false;
+
+patches
+(
+    {
+        name INLET;
+        patchInfo
+        {
+            type patch;
+        }
+
+        constructFrom patches;
+        patches (row_1_INFLOW_10);
+
+    }
+    {
+        name OUTLET;
+        patchInfo
+        {
+            type patch;
+        }
+
+        constructFrom patches;
+        patches (row_1_OUTFLOW_1);
+
+    }
+
+
+    {
+        name Blade;
+        patchInfo
+        {
+            type wall;
+        }
+        constructFrom patches;
+        patches (row_1_Main_Blade_21 row_1_Main_Blade_22);
+
+    }
+
+    {
+        name front;
+        patchInfo
+        {
+            type empty;
+        }
+
+        constructFrom patches;
+        patches (row_1_HUB_UPSTREAM_1_11 row_1_HUB_UPSTREAM_2_12 row_1_HUB_17 row_1_HUB_19 row_1_HUB_23 row_1_HUB_27 row_1_HUB_8     row_1_HUB_DOWNSTREAM_1_2 row_1_HUB_DOWNSTREAM_2_3);
+    }
+
+    {
+        name back;
+        patchInfo
+        {
+            type empty;
+        }
+        constructFrom patches;
+        patches (row_1_SHROUD_UPSTREAM_1_13 row_1_SHROUD_UPSTREAM_2_14 row_1_SHROUD_18 row_1_SHROUD_20 row_1_SHROUD_24 row_1_SHROUD_28 row_1_SHROUD_9    row_1_SHROUD_DOWNSTREAM_1_4  row_1_SHROUD_DOWNSTREAM_2_5);
+    }
+
+);
+
+// ************************************************************************* //

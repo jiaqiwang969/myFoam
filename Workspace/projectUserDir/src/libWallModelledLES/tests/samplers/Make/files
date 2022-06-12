@@ -1,0 +1,11 @@
+../fixtures.C
+testRunner.C
+Sampler/testSampler.C
+MultiCellSampler/testMultiCellSampler.C
+SingleCellSampler/testSingleCellSampler.C
+SampledField/testSampledVelocityField.C
+SampledField/testSampledWallGradUField.C
+SampledField/testSampledPGradField.C
+
+EXE=./testRunner
+

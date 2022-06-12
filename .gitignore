@@ -1,0 +1,8 @@
+*.rar
+*.so
+/Workspace/run
+/Workspace/run/*/0.*
+.*.swp
+.DS_Store
+/Workspace/run/*/*/logs
+/Workspace/*/*/constant/polyMesh*
