@@ -1,1 +1,1 @@
-# myFoam
+# myFoam: my personal workspace
